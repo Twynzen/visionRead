@@ -1,0 +1,11 @@
+{
+  "buildCommand": "ng build",
+  "outputDirectory": "dist/snapsight/browser",
+  "framework": "angular",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
+  ]
+}

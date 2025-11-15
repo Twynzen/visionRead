@@ -1,0 +1,163 @@
+<div class="app-container">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <h1 class="title">
+        <mat-icon class="title-icon">camera_alt</mat-icon>
+        SnapSight AI
+      </h1>
+      <p class="subtitle">Transform screenshots into accessible content with AI</p>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Capture Section -->
+    <mat-card class="capture-card">
+      <mat-card-header>
+        <mat-card-title>Capture & Analyze</mat-card-title>
+        <mat-card-subtitle>Click to capture your screen and analyze with AI</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <!-- Provider Selection -->
+        <div class="provider-selection">
+          <label>AI Provider:</label>
+          <mat-select [(value)]="selectedProvider" class="provider-select">
+            <mat-option value="openai">OpenAI GPT-4 Vision</mat-option>
+            <mat-option value="siliconflow">SiliconFlow (Track Prize)</mat-option>
+          </mat-select>
+        </div>
+
+        <!-- Capture Button -->
+        <button
+          mat-raised-button
+          color="primary"
+          class="capture-button"
+          (click)="captureAndAnalyze()"
+          [disabled]="state().isCapturing">
+          @if (!state().isCapturing) {
+            <mat-icon>screenshot</mat-icon>
+          }
+          @if (state().isCapturing) {
+            <mat-spinner diameter="20"></mat-spinner>
+          }
+          <span>{{ state().isCapturing ? 'Processing...' : 'Capture Screen' }}</span>
+        </button>
+
+        <!-- Preview -->
+        @if (state().imageData) {
+          <div class="preview-container">
+            <img [src]="state().imageData" alt="Captured screenshot" class="preview-image">
+          </div>
+        }
+
+        <!-- Error Message -->
+        @if (state().error) {
+          <div class="error-message">
+            <mat-icon>error</mat-icon>
+            <span>{{ state().error }}</span>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Results Section -->
+    @if (state().analysis) {
+      <mat-card class="results-card">
+        <mat-card-header>
+          <mat-card-title>Analysis Results</mat-card-title>
+          <mat-card-subtitle>AI-powered content analysis</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          <mat-tab-group>
+            <!-- Text Tab -->
+            <mat-tab label="Text Analysis">
+              <div class="tab-content">
+                <p class="analysis-text">{{ state().analysis?.analysis }}</p>
+              </div>
+            </mat-tab>
+
+            <!-- Markdown Tab -->
+            <mat-tab label="Markdown">
+              <div class="tab-content">
+                <div
+                  class="markdown-content"
+                  [innerHTML]="renderedMarkdown()">
+                </div>
+                <button
+                  mat-stroked-button
+                  color="primary"
+                  (click)="downloadMarkdown()"
+                  class="action-button">
+                  <mat-icon>download</mat-icon>
+                  Download Markdown
+                </button>
+              </div>
+            </mat-tab>
+
+            <!-- Audio Tab -->
+            <mat-tab label="Audio">
+              <div class="tab-content">
+                <p class="info-text">Listen to the analysis with natural voice synthesis</p>
+
+                <button
+                  mat-raised-button
+                  color="accent"
+                  (click)="playAudio()"
+                  [disabled]="!audioUrl()"
+                  class="action-button">
+                  <mat-icon>play_arrow</mat-icon>
+                  {{ audioUrl() ? 'Play Audio' : 'Generating Audio...' }}
+                </button>
+
+                @if (audioUrl()) {
+                  <audio [src]="audioUrl()" controls class="audio-player"></audio>
+                }
+              </div>
+            </mat-tab>
+          </mat-tab-group>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <!-- Features Section -->
+    @if (!state().analysis) {
+      <div class="features-grid">
+        <mat-card class="feature-card">
+          <mat-icon class="feature-icon" color="primary">camera_alt</mat-icon>
+          <h3>Screen Capture</h3>
+          <p>Capture any part of your screen instantly</p>
+        </mat-card>
+
+        <mat-card class="feature-card">
+          <mat-icon class="feature-icon" color="primary">visibility</mat-icon>
+          <h3>AI Vision</h3>
+          <p>GPT-4 Vision analyzes and extracts text</p>
+        </mat-card>
+
+        <mat-card class="feature-card">
+          <mat-icon class="feature-icon" color="primary">description</mat-icon>
+          <h3>Markdown Export</h3>
+          <p>Save analysis as formatted documents</p>
+        </mat-card>
+
+        <mat-card class="feature-card">
+          <mat-icon class="feature-icon" color="primary">volume_up</mat-icon>
+          <h3>Text-to-Speech</h3>
+          <p>Listen with natural voice synthesis</p>
+        </mat-card>
+      </div>
+    }
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>
+      Built for <strong>YuKeSong2025 Hackathon</strong> |
+      Theme: <strong>AI for Good</strong> |
+      <a href="https://github.com/Twynzen/visionRead" target="_blank">GitHub</a>
+    </p>
+  </footer>
+</div>
