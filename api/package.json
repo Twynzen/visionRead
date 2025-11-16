@@ -1,6 +1,7 @@
 {
   "name": "snapsight-api",
   "version": "1.0.0",
+  "type": "module",
   "dependencies": {
     "@vercel/node": "^3.0.0",
     "openai": "^4.20.0"
