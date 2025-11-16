@@ -57,4 +57,56 @@ export class CaptureService {
   extractBase64(dataUrl: string): string {
     return dataUrl.split(',')[1];
   }
+
+  /**
+   * Converts a File object to base64 data URL
+   */
+  async fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        reject(new Error('Please select a valid image file'));
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result);
+      };
+
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /**
+   * Handles clipboard paste events
+   * Returns base64 image if clipboard contains an image
+   */
+  async handleClipboardPaste(event: ClipboardEvent): Promise<string | null> {
+    const items = event.clipboardData?.items;
+
+    if (!items) {
+      return null;
+    }
+
+    // Look for image in clipboard
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          return await this.fileToBase64(file);
+        }
+      }
+    }
+
+    return null;
+  }
 }

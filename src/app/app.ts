@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -30,10 +30,12 @@ import { marked } from 'marked';
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
-export class App {
+export class App implements OnInit {
   // State management
   state = signal<CaptureState>({
-    isCapturing: false
+    isCapturing: false,
+    isPreviewing: false,
+    isAnalyzing: false
   });
 
   selectedProvider: 'openai' | 'siliconflow' = 'openai';
@@ -46,23 +48,130 @@ export class App {
     private snackBar: MatSnackBar
   ) {}
 
-  /**
-   * Initiates screen capture and analysis flow
-   */
-  async captureAndAnalyze(): Promise<void> {
-    try {
-      // Update state
-      this.state.update(s => ({ ...s, isCapturing: true, error: undefined }));
+  ngOnInit(): void {
+    this.showMessage('Ready! Capture, upload, or paste an image (Ctrl+V)', 'success');
+  }
 
+  /**
+   * Listens for clipboard paste events
+   */
+  @HostListener('window:paste', ['$event'])
+  async onPaste(event: ClipboardEvent): Promise<void> {
+    try {
+      const imageData = await this.captureService.handleClipboardPaste(event);
+
+      if (imageData) {
+        this.loadImage(imageData, 'clipboard');
+        this.showMessage('Image pasted from clipboard!');
+      }
+    } catch (error: any) {
+      this.showMessage(error.message || 'Failed to paste image', 'error');
+    }
+  }
+
+  /**
+   * Captures screen and loads for preview
+   */
+  async captureScreen(): Promise<void> {
+    try {
+      this.state.update(s => ({ ...s, isCapturing: true, error: undefined }));
       this.showMessage('Select screen to capture...');
 
-      // Step 1: Capture screen
       const imageData = await this.captureService.captureScreen();
-      this.state.update(s => ({ ...s, imageData }));
+      this.loadImage(imageData, 'screen capture');
+
+    } catch (error: any) {
+      console.error('Error capturing screen:', error);
+      this.state.update(s => ({
+        ...s,
+        error: error.message || 'Failed to capture screen'
+      }));
+      this.showMessage(error.message || 'Failed to capture screen', 'error');
+    } finally {
+      this.state.update(s => ({ ...s, isCapturing: false }));
+    }
+  }
+
+  /**
+   * Handles file upload
+   */
+  async onFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) return;
+
+    try {
+      const imageData = await this.captureService.fileToBase64(file);
+      this.loadImage(imageData, 'upload');
+      this.showMessage('Image uploaded successfully!');
+    } catch (error: any) {
+      this.showMessage(error.message || 'Failed to upload image', 'error');
+    }
+
+    // Reset input
+    input.value = '';
+  }
+
+  /**
+   * Handles drag and drop
+   */
+  async onDrop(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const file = event.dataTransfer?.files[0];
+    if (!file) return;
+
+    try {
+      const imageData = await this.captureService.fileToBase64(file);
+      this.loadImage(imageData, 'drag & drop');
+      this.showMessage('Image loaded successfully!');
+    } catch (error: any) {
+      this.showMessage(error.message || 'Failed to load image', 'error');
+    }
+  }
+
+  /**
+   * Prevents default drag behavior
+   */
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  /**
+   * Loads image into preview state
+   */
+  private loadImage(imageData: string, source: string): void {
+    this.state.update(s => ({
+      ...s,
+      imageData,
+      isPreviewing: true,
+      analysis: undefined,
+      error: undefined
+    }));
+    this.audioUrl.set(null);
+    this.renderedMarkdown.set('');
+  }
+
+  /**
+   * Analyzes the loaded image with AI
+   */
+  async analyzeImage(): Promise<void> {
+    const imageData = this.state().imageData;
+    if (!imageData) return;
+
+    try {
+      this.state.update(s => ({
+        ...s,
+        isAnalyzing: true,
+        isPreviewing: false,
+        error: undefined
+      }));
 
       this.showMessage('Analyzing with AI...');
 
-      // Step 2: Analyze with AI
       const analysisRequest: AnalysisRequest = {
         imageData: this.captureService.extractBase64(imageData),
         useProvider: this.selectedProvider
@@ -84,22 +193,39 @@ export class App {
 
       this.showMessage('Analysis complete!');
 
-      // Step 3: Generate audio
+      // Generate audio
       if (analysis.analysis) {
         this.showMessage('Generating audio...');
         await this.generateAudio(analysis.analysis);
       }
 
     } catch (error: any) {
-      console.error('Error:', error);
+      console.error('Error analyzing image:', error);
       this.state.update(s => ({
         ...s,
-        error: error.message || 'An error occurred'
+        error: error.message || 'Analysis failed',
+        isPreviewing: true
       }));
-      this.showMessage(error.message || 'An error occurred', 'error');
+      this.showMessage(error.message || 'Analysis failed', 'error');
     } finally {
-      this.state.update(s => ({ ...s, isCapturing: false }));
+      this.state.update(s => ({ ...s, isAnalyzing: false }));
     }
+  }
+
+  /**
+   * Cancels preview and clears image
+   */
+  cancelPreview(): void {
+    this.state.update(s => ({
+      ...s,
+      imageData: undefined,
+      isPreviewing: false,
+      analysis: undefined,
+      error: undefined
+    }));
+    this.audioUrl.set(null);
+    this.renderedMarkdown.set('');
+    this.showMessage('Preview canceled');
   }
 
   /**

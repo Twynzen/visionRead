@@ -15,8 +15,8 @@
     <!-- Capture Section -->
     <mat-card class="capture-card">
       <mat-card-header>
-        <mat-card-title>Capture & Analyze</mat-card-title>
-        <mat-card-subtitle>Click to capture your screen and analyze with AI</mat-card-subtitle>
+        <mat-card-title>Load Image</mat-card-title>
+        <mat-card-subtitle>Capture, upload, or paste an image to analyze</mat-card-subtitle>
       </mat-card-header>
 
       <mat-card-content>
@@ -29,26 +29,102 @@
           </mat-select>
         </div>
 
-        <!-- Capture Button -->
-        <button
-          mat-raised-button
-          color="primary"
-          class="capture-button"
-          (click)="captureAndAnalyze()"
-          [disabled]="state().isCapturing">
-          @if (!state().isCapturing) {
-            <mat-icon>screenshot</mat-icon>
-          }
-          @if (state().isCapturing) {
-            <mat-spinner diameter="20"></mat-spinner>
-          }
-          <span>{{ state().isCapturing ? 'Processing...' : 'Capture Screen' }}</span>
-        </button>
+        <!-- Action Buttons Grid -->
+        <div class="action-buttons">
+          <!-- Screen Capture Button -->
+          <button
+            mat-raised-button
+            color="primary"
+            class="action-button-item"
+            (click)="captureScreen()"
+            [disabled]="state().isCapturing || state().isPreviewing || state().isAnalyzing">
+            @if (!state().isCapturing) {
+              <mat-icon>screenshot</mat-icon>
+            }
+            @if (state().isCapturing) {
+              <mat-spinner diameter="20"></mat-spinner>
+            }
+            <span>{{ state().isCapturing ? 'Capturing...' : 'Capture Screen' }}</span>
+          </button>
 
-        <!-- Preview -->
-        @if (state().imageData) {
-          <div class="preview-container">
-            <img [src]="state().imageData" alt="Captured screenshot" class="preview-image">
+          <!-- Upload Button -->
+          <button
+            mat-stroked-button
+            color="primary"
+            class="action-button-item"
+            (click)="fileInput.click()"
+            [disabled]="state().isPreviewing || state().isAnalyzing">
+            <mat-icon>upload_file</mat-icon>
+            <span>Upload Image</span>
+          </button>
+          <input
+            #fileInput
+            type="file"
+            accept="image/*"
+            style="display: none"
+            (change)="onFileSelected($event)">
+
+          <!-- Paste Hint -->
+          <div class="paste-hint">
+            <mat-icon>content_paste</mat-icon>
+            <span>Or press Ctrl+V to paste</span>
+          </div>
+        </div>
+
+        <!-- Drag & Drop Zone -->
+        @if (!state().imageData && !state().isCapturing) {
+          <div
+            class="drop-zone"
+            (drop)="onDrop($event)"
+            (dragover)="onDragOver($event)">
+            <mat-icon class="drop-icon">cloud_upload</mat-icon>
+            <p class="drop-text">Drag and drop an image here</p>
+          </div>
+        }
+
+        <!-- Preview Section with Confirmation -->
+        @if (state().isPreviewing && state().imageData) {
+          <div class="preview-section">
+            <div class="preview-container">
+              <img [src]="state().imageData" alt="Image preview" class="preview-image">
+            </div>
+
+            <div class="preview-actions">
+              <button
+                mat-raised-button
+                color="primary"
+                class="analyze-button"
+                (click)="analyzeImage()">
+                <mat-icon>psychology</mat-icon>
+                <span>Analyze Image</span>
+              </button>
+
+              <button
+                mat-stroked-button
+                class="cancel-button"
+                (click)="cancelPreview()">
+                <mat-icon>close</mat-icon>
+                <span>Cancel</span>
+              </button>
+            </div>
+
+            <p class="preview-hint">
+              <mat-icon>info</mat-icon>
+              Review the image and click "Analyze Image" to continue
+            </p>
+          </div>
+        }
+
+        <!-- Analyzing State -->
+        @if (state().isAnalyzing && state().imageData) {
+          <div class="analyzing-section">
+            <div class="preview-container analyzing">
+              <img [src]="state().imageData" alt="Analyzing..." class="preview-image">
+              <div class="analyzing-overlay">
+                <mat-spinner diameter="60"></mat-spinner>
+                <p>Analyzing with AI...</p>
+              </div>
+            </div>
           </div>
         }
 
@@ -71,50 +147,86 @@
         </mat-card-header>
 
         <mat-card-content>
-          <mat-tab-group>
-            <!-- Text Tab -->
-            <mat-tab label="Text Analysis">
+          <mat-tab-group animationDuration="300ms">
+            <!-- Analysis Tab (Main) -->
+            <mat-tab>
+              <ng-template mat-tab-label>
+                <mat-icon class="tab-icon">psychology</mat-icon>
+                Analysis
+              </ng-template>
               <div class="tab-content">
-                <p class="analysis-text">{{ state().analysis?.analysis }}</p>
+                <div class="analysis-section">
+                  <h3 class="section-title">
+                    <mat-icon>auto_awesome</mat-icon>
+                    AI Analysis
+                  </h3>
+                  <p class="analysis-text">{{ state().analysis?.analysis }}</p>
+
+                  <!-- Audio Player -->
+                  @if (audioUrl()) {
+                    <div class="audio-section">
+                      <h4 class="audio-title">
+                        <mat-icon>volume_up</mat-icon>
+                        Audio Description
+                      </h4>
+                      <audio [src]="audioUrl()" controls class="audio-player"></audio>
+                    </div>
+                  } @else {
+                    <div class="audio-loading">
+                      <mat-spinner diameter="20"></mat-spinner>
+                      <span>Generating audio...</span>
+                    </div>
+                  }
+                </div>
               </div>
             </mat-tab>
 
             <!-- Markdown Tab -->
-            <mat-tab label="Markdown">
+            <mat-tab>
+              <ng-template mat-tab-label>
+                <mat-icon class="tab-icon">description</mat-icon>
+                Markdown
+              </ng-template>
               <div class="tab-content">
-                <div
-                  class="markdown-content"
-                  [innerHTML]="renderedMarkdown()">
+                <div class="markdown-section">
+                  <div
+                    class="markdown-content"
+                    [innerHTML]="renderedMarkdown()">
+                  </div>
+                  <button
+                    mat-raised-button
+                    color="primary"
+                    (click)="downloadMarkdown()"
+                    class="download-button">
+                    <mat-icon>download</mat-icon>
+                    Download Markdown
+                  </button>
                 </div>
-                <button
-                  mat-stroked-button
-                  color="primary"
-                  (click)="downloadMarkdown()"
-                  class="action-button">
-                  <mat-icon>download</mat-icon>
-                  Download Markdown
-                </button>
               </div>
             </mat-tab>
 
-            <!-- Audio Tab -->
-            <mat-tab label="Audio">
+            <!-- OCR Tab -->
+            <mat-tab>
+              <ng-template mat-tab-label>
+                <mat-icon class="tab-icon">text_fields</mat-icon>
+                OCR Text
+              </ng-template>
               <div class="tab-content">
-                <p class="info-text">Listen to the analysis with natural voice synthesis</p>
-
-                <button
-                  mat-raised-button
-                  color="accent"
-                  (click)="playAudio()"
-                  [disabled]="!audioUrl()"
-                  class="action-button">
-                  <mat-icon>play_arrow</mat-icon>
-                  {{ audioUrl() ? 'Play Audio' : 'Generating Audio...' }}
-                </button>
-
-                @if (audioUrl()) {
-                  <audio [src]="audioUrl()" controls class="audio-player"></audio>
-                }
+                <div class="ocr-section">
+                  <h3 class="section-title">
+                    <mat-icon>text_snippet</mat-icon>
+                    Extracted Text
+                  </h3>
+                  @if (state().analysis?.ocrText) {
+                    <pre class="ocr-text">{{ state().analysis?.ocrText }}</pre>
+                  } @else {
+                    <p class="ocr-text">{{ state().analysis?.analysis }}</p>
+                    <p class="info-note">
+                      <mat-icon>info</mat-icon>
+                      OCR text is included in the analysis above
+                    </p>
+                  }
+                </div>
               </div>
             </mat-tab>
           </mat-tab-group>
@@ -123,7 +235,7 @@
     }
 
     <!-- Features Section -->
-    @if (!state().analysis) {
+    @if (!state().analysis && !state().imageData) {
       <div class="features-grid">
         <mat-card class="feature-card">
           <mat-icon class="feature-icon" color="primary">camera_alt</mat-icon>
@@ -132,15 +244,15 @@
         </mat-card>
 
         <mat-card class="feature-card">
-          <mat-icon class="feature-icon" color="primary">visibility</mat-icon>
-          <h3>AI Vision</h3>
-          <p>GPT-4 Vision analyzes and extracts text</p>
+          <mat-icon class="feature-icon" color="primary">upload_file</mat-icon>
+          <h3>Upload Images</h3>
+          <p>Drag & drop or select files from your device</p>
         </mat-card>
 
         <mat-card class="feature-card">
-          <mat-icon class="feature-icon" color="primary">description</mat-icon>
-          <h3>Markdown Export</h3>
-          <p>Save analysis as formatted documents</p>
+          <mat-icon class="feature-icon" color="primary">visibility</mat-icon>
+          <h3>AI Vision</h3>
+          <p>GPT-4 Vision analyzes and extracts text</p>
         </mat-card>
 
         <mat-card class="feature-card">

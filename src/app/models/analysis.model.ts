@@ -13,6 +13,7 @@ export interface AnalysisResponse {
   analysis?: string;
   markdown?: string;
   audioUrl?: string;
+  ocrText?: string; // Separated OCR text extraction
   error?: string;
   timestamp?: Date;
   provider?: string;
@@ -35,4 +36,6 @@ export interface CaptureState {
   imageData?: string;
   analysis?: AnalysisResponse;
   error?: string;
+  isAnalyzing?: boolean;
+  isPreviewing?: boolean; // Image loaded but not analyzed yet
 }
